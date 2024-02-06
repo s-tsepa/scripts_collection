@@ -4,7 +4,7 @@ import numpy as np
 
 Matrix = Sequence[Sequence]
 
-COEF_LABEL_ROUND_SIGNS = 1
+COEF_LABEL_ROUND_SIGNS = 3
 
 
 def matmul(a: Matrix, b: Matrix):

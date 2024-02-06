@@ -27,11 +27,10 @@ def my_f1_score(y_true, y_pred):
     f1_val = 2 * (precision * recall) / (precision + recall + K.epsilon())
     return f1_val
 
-ASSETS_DIR = "assets"
 RANDOM_STATE = 123
 VERBOSITY = 2
 
-df = pd.read_csv(f"{ASSETS_DIR}/task 1.csv", index_col=0).sort_index()
+df = pd.read_csv(f"task 1.csv", index_col=0).sort_index()
 
 y = df.pop("user_id")
 y = y.apply(lambda x: 1 if x == 0 else 0)
@@ -49,7 +48,6 @@ def onehot_encode(X: pd.DataFrame) -> pd.DataFrame:
     feat_columns = encoder.get_feature_names_out(df.columns)
 
     res_df = pd.DataFrame(np_array, columns=feat_columns)
-    # res_df = res_df.astype(np.int8)
     return res_df
 
 
@@ -118,6 +116,8 @@ results = model.evaluate(
 )
 
 print(results)
+
+model.summary()
 
 # test_loss, test_f1, test_accuracy, test_precision, test_recall, test_auc = model.evaluate(X_test, y_test)
 
