@@ -24,6 +24,8 @@ Now app will be accessible at http://127.0.0.1:8000/
 
 ## Testing
 
+Comprehensive unit tests have been implemented to ensure the reliability and correctness of the application's functionality.
+
 Running tests:
 
 ```bash
@@ -39,8 +41,8 @@ The FastAPI application has been containerized using Docker for improved portabi
 To build the Docker image for the FastAPI application, run the following inside root dir of the project:
 
 ```bash
-docker build -t app_python-lab2 .
-docker run -p 8000:8000 app_python-lab2
+docker build -t app_python .
+docker run -p 8000:8000 app_python
 ```
 
 The application now will be accessible at http://127.0.0.1:8000
@@ -50,9 +52,23 @@ The application now will be accessible at http://127.0.0.1:8000
 If you prefer to pull the Docker image from Docker Hub, follow these steps:
 
 ```bash
-docker pull tsepanx/app_python-lab2
-docker run -p 8000:8000 tsepanx/app_python-lab2
+docker pull tsepanx/app_python
+docker run -p 8000:8000 tsepanx/app_python
 ```
 
 
 The application now will be accessible at http://127.0.0.1:8000
+
+## Continuous Integration (CI) Workflow
+
+The project includes a CI workflow using GitHub Actions to automate the build and testing process. The workflow consists of several essential steps:
+
+- **Dependencies**: Ensure dependencies are installed using pip
+- **Linting**: Check code quality and adherence to coding standards using linters
+- **Tests**: Run comprehensive unit tests to verify the application's functionality
+
+Additionally, Docker-related steps are handled in a separate CI workflow specifically for Docker:
+
+- **Build & Push**: Automatically build Docker images and push them to Docker Hub
+
+For more details, refer to the workflow files located in the `.github/workflows` directory
