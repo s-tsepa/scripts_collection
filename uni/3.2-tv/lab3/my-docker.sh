@@ -40,7 +40,7 @@ tar xf $ROOTFS_TAR -C $MOUNT_PATH
 
 control_group="cpu,memory:$IMAGE_NAME"
 cgcreate -g $control_group
-cgexec -g $control_group unshare --fork --mount --mount-proc --pid --ipc chroot $MOUNT_PATH /bin/bash
+cgexec -g $control_group unshare --fork --mount --pid chroot $MOUNT_PATH /bin/bash
 
 # --- Removal ---
 

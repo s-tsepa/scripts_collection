@@ -1,121 +1,131 @@
 
-#include <vector>
 #include <CL/opencl.hpp>
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <vector>
 
 #include <chrono>
 #include <iomanip>
 
-
-class Math {
-
+class Math
+{
 public:
-	static float dotProductSerial(const std::vector<float> &a, const std::vector<float> &b) {
-		float result = 0.0f;
-		for (size_t i = 0; i < a.size(); ++i) {
-			result += a[i] * b[i];
-		}
-		return result;
-	}
+    static float dotProductSerial(const std::vector<float> &a, const std::vector<float> &b)
+    {
+        float result = 0.0f;
+        for (size_t i = 0; i < a.size(); ++i) {
+            result += a[i] * b[i];
+        }
+        return result;
+    }
 
-	static float dotProductOpenMP(const std::vector<float> &a, const std::vector<float> &b) {
-		float result = 0.0f;
-	#pragma omp parallel for reduction(+ : result)
-		for (size_t i = 0; i < a.size(); ++i) {
-			result += a[i] * b[i];
-		}
-		return result;
-	}
+    static float dotProductOpenMP(const std::vector<float> &a, const std::vector<float> &b)
+    {
+        float result = 0.0f;
+#pragma omp parallel for reduction(+ : result)
+        for (size_t i = 0; i < a.size(); ++i) {
+            result += a[i] * b[i];
+        }
+        return result;
+    }
 
-	static float dotProductOpenCLNaive(const std::vector<float> &vec1, const std::vector<float> &vec2) {
-		// Get available platforms
-		std::vector<cl::Platform> platforms;
-		cl::Platform::get(&platforms);
+    static float dotProductOpenCLNaive(const std::vector<float> &vec1,
+                                       const std::vector<float> &vec2)
+    {
+        std::vector<cl::Platform> platforms;
+        cl::Platform::get(&platforms);
 
-		if (platforms.empty()) {
-			std::cerr << "No OpenCL platforms found." << std::endl;
-			return 0.0f;
-		}
+        if (platforms.empty()) {
+            std::cerr << "No OpenCL platforms found." << std::endl;
+            return 0.0f;
+        }
 
-		std::vector<cl::Device> devices;
-		platforms[0].getDevices(CL_DEVICE_TYPE_GPU, &devices);
+        std::vector<cl::Device> devices;
+        platforms[0].getDevices(CL_DEVICE_TYPE_GPU, &devices);
 
-		if (devices.empty()) {
-			std::cerr << "No GPU devices found." << std::endl;
-			return 0.0f;
-		}
+        if (devices.empty()) {
+            std::cerr << "No GPU devices found." << std::endl;
+            return 0.0f;
+        }
 
-		cl::Context context(devices);
-		cl::CommandQueue queue(context, devices[0]);
+        cl::Context context(devices);
 
-		std::string kernelSource
-			= "__kernel void dot_product(__global const float* vec1, __global const float* vec2, "
-			  "__global float* result, const unsigned int n) {\n"
-			  "    int gid = get_global_id(0);\n"
-			  "    if (gid < n) {\n"
-			  "        result[gid] = vec1[gid] * vec2[gid];\n"
-			  "    }\n"
-			  "}\n";
+        cl::CommandQueue queue(context, devices[0]);
 
-		cl::Program::Sources sources;
-		sources.push_back({kernelSource.c_str(), kernelSource.length()});
+        std::string kernelSource
+            = "__kernel void dot_product(__global const float* vec1, __global const float* vec2, "
+              "__global float* result, const unsigned int n) {\n"
+              "    int gid = get_global_id(0);\n"
+              "    if (gid < n) {\n"
+              "        result[gid] = vec1[gid] * vec2[gid];\n"
+              "    }\n"
+              "}\n";
 
-		cl::Program program(context, sources);
+        cl::Program::Sources sources;
+        sources.push_back({kernelSource.c_str(), kernelSource.length()});
 
-		cl::Kernel kernel(program, "dot_product");
+        cl::Program program(context, sources);
 
-		cl::Buffer bufferVec1(context,
-							  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-							  sizeof(float) * vec1.size(),
-							  const_cast<float *>(vec1.data()));
-		cl::Buffer bufferVec2(context,
-							  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-							  sizeof(float) * vec2.size(),
-							  const_cast<float *>(vec2.data()));
-		cl::Buffer bufferResult(context, CL_MEM_WRITE_ONLY, sizeof(float) * vec1.size());
+        if (program.build(devices) != CL_SUCCESS) {
+            std::cerr << "Error building program: "
+                      << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(devices[0]) << std::endl;
+            return 0.0f;
+        }
 
-		kernel.setArg(0, bufferVec1);
-		kernel.setArg(1, bufferVec2);
-		kernel.setArg(2, bufferResult);
-		kernel.setArg(3, static_cast<unsigned int>(vec1.size()));
+        cl::Kernel kernel(program, "dot_product");
+        cl::Buffer bufferVec1(context,
+                              CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                              sizeof(float) * vec1.size(),
+                              const_cast<float *>(vec1.data()));
+        cl::Buffer bufferVec2(context,
+                              CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                              sizeof(float) * vec2.size(),
+                              const_cast<float *>(vec2.data()));
+        cl::Buffer bufferResult(context, CL_MEM_WRITE_ONLY, sizeof(float) * vec1.size());
 
-		queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(vec1.size()));
+        kernel.setArg(0, bufferVec1);
+        kernel.setArg(1, bufferVec2);
+        kernel.setArg(2, bufferResult);
+        kernel.setArg(3, static_cast<unsigned int>(vec1.size()));
 
-		std::vector<float> result(vec1.size());
-		queue.enqueueReadBuffer(bufferResult, CL_TRUE, 0, sizeof(float) * vec1.size(), result.data());
+        queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(vec1.size()));
 
-		float dotProduct = 0.0f;
-		for (float val : result) {
-			dotProduct += val;
-		}
+        std::vector<float> result(vec1.size());
+        queue.enqueueReadBuffer(bufferResult, CL_TRUE, 0, sizeof(float) * vec1.size(), result.data());
 
-		return dotProduct;
-	}
+        float dotProduct = 0.0f;
+        for (float val : result) {
+            dotProduct += val;
+        }
 
-//	static float dotProductOpenCLOptimized(const std::vector<float> &a, const std::vector<float> &b);
+        return dotProduct;
+    }
 
+    //	static float dotProductOpenCLOptimized(const std::vector<float> &a, const std::vector<float> &b);
 };
 
-void printCPUInfo() {
+void printCPUInfo()
+{
     std::ifstream cpuinfo("/proc/cpuinfo");
     std::string line;
     while (std::getline(cpuinfo, line)) {
-        if (line.substr(0, 6) == "model:" || line.substr(0, 7) == "cpu MHz" || line.substr(0, 9) == "cpu cores" || line.substr(0, 8) == "MemTotal") {
+        if (line.substr(0, 6) == "model:" || line.substr(0, 7) == "cpu MHz"
+            || line.substr(0, 9) == "cpu cores" || line.substr(0, 8) == "MemTotal") {
             std::cout << line << std::endl;
         }
     }
     cpuinfo.close();
 }
 
-void printGPUInfo() {
+void printGPUInfo()
+{
     cl_platform_id platform;
     cl_device_id device;
     cl_uint numPlatforms;
     cl_uint numDevices;
 
     clGetPlatformIDs(0, nullptr, &numPlatforms);
-	clGetPlatformIDs(1, &platform, nullptr);
+    clGetPlatformIDs(1, &platform, nullptr);
     clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, nullptr, &numDevices);
     clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, nullptr);
 
@@ -148,7 +158,7 @@ int main()
 
     // --- Calculation ---
 
-    const std::vector<size_t> arraySizes = {1000, 10000, 100000, 1000000};
+    const std::vector<size_t> arraySizes = {10, 1000, 10000, 100000, 1000000};
 
     std::cout << std::setw(10) << "Array Size" << std::setw(15) << "Serial Time" << std::setw(15)
               << "OMP Time" << std::setw(15) << "OMP Speedup" << std::setw(15) << "OpenCL 1 Time"
@@ -182,15 +192,13 @@ int main()
                   << ompParallelSpeedup << std::setw(15) << naiveOpenCLTime.count() << std::setw(20)
                   << naiveOpenCLSpeedup << std::setw(15) << std::endl;
 
-		float threshold = 0.0001f;
+        float threshold = 0.0001f;
         bool parallelCorrect = std::abs(serialResult - parallelResult) < threshold;
-		bool openCLCorrect = std::abs(serialResult - naiveOpenCLResult) < threshold;
+        bool openCLCorrect = std::abs(serialResult - naiveOpenCLResult) < threshold;
 
-    	if (parallelCorrect && openCLCorrect) {
-    		std::cout << "All results are equal" << std::endl;
-    	}
-
-		std::cout << serialResult << ", " << parallelResult << ", " << naiveOpenCLResult << std::endl;
+        if (!parallelCorrect || !openCLCorrect) {
+            std::cout << "Results are not equal" << std::endl;
+        }
     }
 
     return 0;

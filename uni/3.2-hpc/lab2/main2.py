@@ -21,6 +21,16 @@ dt_values = []
 x = np.linspace(0, L, M + 1)
 
 
+def solve_wave_equation_part(u, x_prime, start, end):
+    for n in range(start, end):
+        for m in range(1, M):
+            u[n + 1, m] = u[n, m] + dt * x_prime[m] + \
+                          (dt ** 2 / 2) * (np.exp(np.cos(x[m])) / 10) * \
+                          ((u[n, m + 1] - 2 * u[n, m] + u[n, m - 1]) / dx ** 2)
+        for m in range(1, M):
+            x_prime[m] = (u[n + 1, m + 1] - u[n + 1, m - 1]) / (2 * dx)
+
+
 def run_sample_plot_animation():
     u = np.zeros((N + 1, M + 1))
     u[0] = 0.1 * np.sin(np.pi * x)
@@ -30,17 +40,7 @@ def run_sample_plot_animation():
 
     x_prime = np.zeros_like(x)
 
-    @jit(nopython=True)
-    def solve_wave_equation(u, x_prime):
-        for n in range(N):
-            for m in range(1, M):
-                u[n + 1, m] = u[n, m] + dt * x_prime[m] + \
-                              (dt ** 2 / 2) * (np.exp(np.cos(x[m])) / 10) * \
-                              ((u[n, m + 1] - 2 * u[n, m] + u[n, m - 1]) / dx ** 2)
-            for m in range(1, M):
-                x_prime[m] = (u[n + 1, m + 1] - u[n + 1, m - 1]) / (2 * dx)
-
-    solve_wave_equation(u, x_prime)
+    solve_wave_equation_part(u, x_prime, 0, N)
 
     # fig, ax = plt.subplots()
     # ax.set_xlim(0, 1)
@@ -72,15 +72,6 @@ def run_sample_plot_animation():
 
 
 def run_cpu_perf_analysis_chart():
-    # Function to solve the wave equation in parallel
-    def solve_wave_equation_parallel(u, x_prime, start, end):
-        for n in range(start, end):
-            for m in range(1, M):
-                u[n + 1, m] = u[n, m] + dt * x_prime[m] + \
-                              (dt ** 2 / 2) * (np.exp(np.cos(x[m])) / 10) * \
-                              ((u[n, m + 1] - 2 * u[n, m] + u[n, m - 1]) / dx ** 2)
-            for m in range(1, M):
-                x_prime[m] = (u[n + 1, m + 1] - u[n + 1, m - 1]) / (2 * dx)
 
     # Function to perform performance analysis
     def performance_analysis(num_threads_list, N_values):
@@ -98,7 +89,7 @@ def run_cpu_perf_analysis_chart():
                 for i in range(num_threads):
                     start = i * chunk_size
                     end = (i + 1) * chunk_size if i < num_threads - 1 else N
-                    process = multiprocessing.Process(target=solve_wave_equation_parallel, args=(u, x_prime, start, end))
+                    process = multiprocessing.Process(target=solve_wave_equation_part, args=(u, x_prime, start, end))
                     processes.append(process)
                     process.start()
                 for process in processes:

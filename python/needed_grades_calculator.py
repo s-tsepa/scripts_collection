@@ -193,19 +193,64 @@ courses = []
 # courses.append(c)
 
 c = Course('SQR', 60, [  # C
-    (0, 8),    # Quizzes (p1)
-    (8.5, 12),  # Quizzes (p2)
+    (4, 5),  # Quiz 1
+    (0, 5),  # Quiz 2 (Metrics)
+    (0, 5),  # Quiz 3
+    (3, 5),  # Quiz 4 (Coverage)
     # (0, 60),    # Labs
-    # (0, 20),    # Project
+    # (60/7 * 1, 60/7),    # Lab 1
+    # (60/7 * 1, 60/7),    # Lab 2
+    # (60/7 * 1, 60/7),    # Lab 3
+    # (60/7 * 1, 60/7),    # Lab 4
+    # (60/7 * 1, 60/7),    # Lab 5
+    # (60/7 * 1, 60/7),    # Lab 6
+    # (60/7 * 1, 60/7),    # Lab 7
+
+    (15, 20),    # Project
 ])
 courses.append(c)
 
-# c = Course('DE', 60, [  # C
-#     (0, 10),    # Attendance
-#     (0, 55),    # Labs
-#     (0, 35),    # Exam
-# ])
-# courses.append(c)
+c = Course('HPC', 55, [  # C
+    (40, 40),    # Attendance
+    (9, 10),  # Assignment 1
+    (5, 7),  # Assignment 2
+    (0, 3),  # Assignment 2.1
+#     (10, 10),  # Assignment 3
+#     (0, 10),  # Presentation
+#     (0, 20),  # Final
+])
+courses.append(c)
+
+c = Course('DE', 60, [  # C
+    (7.5, 5),    # Lab 2
+    (7.5, 5),    # Lab 3
+    (5 * 0.9, 5),    # Lab 4
+    (5, 5),    # Lab 5
+#     (5, 5),    # Lab 6
+#     (5, 5),    # Lab 7
+#     (5, 5),    # Lab 8
+    (0, 5),    # Lab 9 (Kubernetes 1)
+#     (5, 5),    # Lab 10 (Kubernetes 2)
+#     (5, 5),    # Lab 11
+#     (5, 5),    # Lab 1
+#     (5, 5),    # Lab 1
+#     (5, 5),    # Lab 1
+#     (5, 5),    # Lab 1
+    (0, 30),  # Final
+])
+courses.append(c)
+
+c = Course('TV', 60, [  # C
+    (3, 0), # Task 1.1 (bonus)
+    (6, 7), # Task 1.2
+    (4, 8), # Task 2.1
+    (6, 7), # Task 2.2
+    (10, 10), # Task 3
+#    (0, 30), # Task 4+5
+#    (0, 8), # Task 6.4
+#   (0, 30), # Final (Oral)
+])
+courses.append(c)
 
 
 # c = Course('Networks', 60, [  # C
