@@ -203,6 +203,7 @@ def int_to_bin(n: int, to_bytes_size=True):
 
 
 def bin_to_int(b: str) -> int:
+    b = b.replace(" ", "")
     return int(b, 2)
 
 
@@ -223,7 +224,7 @@ def bytes_to_bin(b: bytes) -> str:
         # byte.to_bytes(1, ENDIANNESS)
 
         bin_str: str = int_to_bin(byte_int)
-        res += bin_str
+        res += bin_str + " "
 
     return res
 
