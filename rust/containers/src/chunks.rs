@@ -10,13 +10,19 @@ where
     pub ptr: *mut T,
     pub count: usize,
     pub allocated: bool,
+    pub bounds_check: bool,
 }
 
 impl<T: Copy> Chunks<T> {
     pub unsafe fn alloc(count: usize) -> Self {
         let layout = alloc::Layout::array::<T>(count).unwrap();
         let ptr: *mut T = alloc::alloc(layout) as *mut T;
-        Self {ptr, count, allocated: true}
+        Self {
+            ptr,
+            count,
+            allocated: true,
+            bounds_check: true
+        }
     }
 
     pub unsafe fn dealloc(&mut self) {
@@ -43,12 +49,15 @@ impl<T: Copy> Chunks<T> {
     }
 
     fn bounds(&self, index: usize) -> bool {
-        0 <= index && index <= self.count 
+        match self.bounds_check {
+            false => true,
+            true => 0 <= index && index < self.count,
+        }
     }
 
     fn get(&self, index: usize) -> Result<&T, &'static str> {
         // Safety: Out-of-bounds is checked
-        if (self.bounds(index)) {
+        if self.bounds(index) {
             unsafe {
                 // TODO Maybe return by reference?
                 // Does &mut *... is a borrowing, i.e. moving?
@@ -70,7 +79,7 @@ impl<T: Copy> Chunks<T> {
         //}
 
         // Safety: Out-of-bounds is checked
-        if (self.bounds(index)) {
+        if self.bounds(index) {
             unsafe {
                 Ok(&mut *self.ptr.add(index))
             }
@@ -115,7 +124,7 @@ impl<T: fmt::Display + Copy> fmt::Debug for Chunks<T> {
 
 impl<T: Copy> Drop for Chunks<T> {
     fn drop(&mut self) {
-        if (self.allocated) {
+        if self.allocated {
             // Safety: We know we allocated this memory via `unsafe` so we must deallocate it.
             unsafe { self.dealloc(); }
         }

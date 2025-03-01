@@ -97,14 +97,16 @@ mod tests {
             ptr: ptr,
             count: SIZE * size_factor,
             // Double-free is possible, so do not treat it as allocated
-            allocated: false
+            allocated: false,
+            // Will exceed bounds intentionally further
+            bounds_check: false,
         };
 
         /*
          * Checking that VALUE is present in first byte of each chunk
          */
         chunks2.indices().for_each(|i| {
-            if (i % size_factor == 0) {
+            if i % size_factor == 0 {
                 assert_eq!(chunks2[i], VALUE.into(), "(i: {i}) First byte in chunk is to be {VALUE}");
             } else {
                 assert_eq!(chunks2[i], 0.into(), "(i: {i}) Rest part of chunk is to be 0");
