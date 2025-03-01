@@ -41,6 +41,44 @@ impl<T: Copy> Chunks<T> {
     pub fn indices(&self) -> std::ops::Range<usize> {
         0..self.count
     }
+
+    fn bounds(&self, index: usize) -> bool {
+        0 <= index && index <= self.count 
+    }
+
+    fn get(&self, index: usize) -> Result<&T, &'static str> {
+        // Safety: Out-of-bounds is checked
+        if (self.bounds(index)) {
+            unsafe {
+                // TODO Maybe return by reference?
+                // Does &mut *... is a borrowing, i.e. moving?
+                // Looks like overhead of moving twice
+                Ok(&*self.ptr.add(index))
+            }
+        } else {
+            Err("Index out of bounds")
+        }
+    }
+
+    fn get_mut(&mut self, index: usize) -> Result<&mut T, &'static str> {
+        // TODO Check overheads of such solution
+        // May it be done better?
+        //match self.get(index) {
+        //    // === Error: [E0605]: non-primitive cast: `&T` as `&mut T`
+        //    Ok(value) => Ok(value as &mut T),
+        //    Err(err) => panic!("{}", err),
+        //}
+
+        // Safety: Out-of-bounds is checked
+        if (self.bounds(index)) {
+            unsafe {
+                Ok(&mut *self.ptr.add(index))
+            }
+        } else {
+            Err("Index out of bounds")
+        }
+    }
+    // TODO is it right approach in Rust to have mut & const function's duplicates?
 }
 
 // ================== INDEX & INDEX_MUT ==================
@@ -49,17 +87,13 @@ impl<T: Copy> Index<usize> for Chunks<T> {
     type Output = T;
 
     fn index(&self, index: usize) -> &Self::Output {
-        unsafe {
-            &*self.ptr.add(index) as &T // as &u8
-        }
+        self.get(index).unwrap()
     }
 }
 
 impl<T: Copy> IndexMut<usize> for Chunks<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        unsafe {
-            &mut *self.ptr.add(index) as &mut T // as &mut u8
-        }
+        self.get_mut(index).unwrap()
     }
 }
 

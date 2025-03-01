@@ -1,3 +1,4 @@
+
 macro_rules! test_parametrized {
     ($func_name:ident, $type_ident:ident, $type:ty) => {
         #[test]
@@ -10,6 +11,7 @@ macro_rules! test_parametrized {
 #[cfg(test)]
 mod tests {
     use containers::chunks::Chunks;
+    use assert_panic::assert_panic;
     use std::alloc;
     use std::ptr;
     use std::mem;
@@ -43,6 +45,18 @@ mod tests {
             assert_eq!(chunks[0], 10);
             assert_eq!(chunks[1], 10);
             assert_eq!(chunks[2], 10);
+        }
+    }
+
+    #[test]
+    fn test_index_out_of_bounds() {
+        unsafe {
+            let mut chunks = Chunks::<u32>::alloc(3);
+            chunks.memset(10);
+            assert_eq!(chunks[0], 10);
+            assert_eq!(chunks[1], 10);
+            assert_eq!(chunks[2], 10);
+            assert_panic!({ chunks[3]; });
         }
     }
 
