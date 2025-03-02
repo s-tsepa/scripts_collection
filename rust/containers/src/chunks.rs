@@ -16,9 +16,15 @@ impl<
     const BC: bool,
     const AD: bool,
 > Chunks<T, BC, AD> {
-    pub unsafe fn alloc(count: usize) -> Self {
+    pub fn alloc(count: usize) -> Self {
         let layout = alloc::Layout::array::<T>(count).unwrap();
-        let ptr: *mut T = alloc::alloc(layout) as *mut T;
+        if layout.size() == 0 {
+            panic!("Improper layout");
+        }
+
+        let ptr: *mut T = unsafe {
+            alloc::alloc(layout) as *mut T
+        };
         Self {
             ptr,
             count,
@@ -31,10 +37,15 @@ impl<
         c
     }
 
-    pub unsafe fn dealloc(&mut self) {
+    pub fn dealloc(&mut self) {
         let layout = alloc::Layout::array::<T>(self.count).unwrap();
         let ptrByte = self.ptr as *mut u8;
-        alloc::dealloc(ptrByte, layout);
+        if self.allocated() {
+            // Safety: memory was allocated with same pointer and layout alignment
+            unsafe {
+                alloc::dealloc(ptrByte, layout);
+            }
+        }
 
         self.ptr = ptr::null::<T>() as *mut T;
     }
@@ -49,7 +60,7 @@ impl<
         }
     }
 
-    pub unsafe fn as_array<const N: usize>(&self) -> *const [T; N] {
+    pub fn as_array<const N: usize>(&self) -> *const [T; N] {
         self.ptr as *const [T; N]
     }
 
