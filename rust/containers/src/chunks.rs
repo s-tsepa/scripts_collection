@@ -3,26 +3,32 @@ use std::ptr;
 use std::fmt;
 use std::ops::{Index, IndexMut};
 
-pub struct Chunks<T>
+pub struct Chunks<T, const BOUNDS_CHECK: bool = true, const AUTO_DROP: bool = true>
 where
     T: Copy
 {
     pub ptr: *mut T,
     pub count: usize,
-    pub allocated: bool,
-    pub bounds_check: bool,
 }
 
-impl<T: Copy> Chunks<T> {
+impl<
+    T: Copy,
+    const BC: bool,
+    const AD: bool,
+> Chunks<T, BC, AD> {
     pub unsafe fn alloc(count: usize) -> Self {
         let layout = alloc::Layout::array::<T>(count).unwrap();
         let ptr: *mut T = alloc::alloc(layout) as *mut T;
         Self {
             ptr,
             count,
-            allocated: true,
-            bounds_check: true
         }
+    }
+
+    pub unsafe fn filled(count: usize, value: T) -> Self {
+        let mut c = Self::alloc(count);
+        c.memset(value);
+        c
     }
 
     pub unsafe fn dealloc(&mut self) {
@@ -31,7 +37,10 @@ impl<T: Copy> Chunks<T> {
         alloc::dealloc(ptrByte, layout);
 
         self.ptr = ptr::null::<T>() as *mut T;
-        self.allocated = false;
+    }
+
+    pub fn allocated(&self) -> bool {
+        !self.ptr.is_null()
     }
 
     pub unsafe fn memset(&mut self, value: T) {
@@ -49,7 +58,7 @@ impl<T: Copy> Chunks<T> {
     }
 
     fn bounds(&self, index: usize) -> bool {
-        match self.bounds_check {
+        match BC {
             false => true,
             true => 0 <= index && index < self.count,
         }
@@ -78,8 +87,8 @@ impl<T: Copy> Chunks<T> {
         //    Err(err) => panic!("{}", err),
         //}
 
-        // Safety: Out-of-bounds is checked
         if self.bounds(index) {
+            // Safety: Out-of-bounds is checked
             unsafe {
                 Ok(&mut *self.ptr.add(index))
             }
@@ -92,7 +101,11 @@ impl<T: Copy> Chunks<T> {
 
 // ================== INDEX & INDEX_MUT ==================
 
-impl<T: Copy> Index<usize> for Chunks<T> {
+impl<
+    T: Copy,
+    const BC: bool,
+    const AD: bool,
+> Index<usize> for Chunks<T, BC, AD> {
     type Output = T;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -100,7 +113,11 @@ impl<T: Copy> Index<usize> for Chunks<T> {
     }
 }
 
-impl<T: Copy> IndexMut<usize> for Chunks<T> {
+impl<
+    T: Copy,
+    const BC: bool,
+    const AD: bool,
+> IndexMut<usize> for Chunks<T, BC, AD> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         self.get_mut(index).unwrap()
     }
@@ -108,10 +125,14 @@ impl<T: Copy> IndexMut<usize> for Chunks<T> {
 
 // ================== FMT ==================
 
-impl<T: fmt::Display + Copy> fmt::Debug for Chunks<T> {
+impl<
+    T: fmt::Display + Copy,
+    const BC: bool,
+    const AD: bool,
+> fmt::Debug for Chunks<T, BC, AD> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Chunks: [");
-        for i in 0..self.count {
+        for i in 0..self.count + 20 {
             if i > 0 { write!(f, ", "); }
             let val: T = unsafe { self.ptr.add(i).read() };
             write!(f, "{}", val);
@@ -122,9 +143,13 @@ impl<T: fmt::Display + Copy> fmt::Debug for Chunks<T> {
 
 // ================== DROP ==================
 
-impl<T: Copy> Drop for Chunks<T> {
+impl<
+    T: Copy,
+    const BC: bool,
+    const AD: bool,
+> Drop for Chunks<T, BC, AD> {
     fn drop(&mut self) {
-        if self.allocated {
+        if self.allocated() && AD {
             // Safety: We know we allocated this memory via `unsafe` so we must deallocate it.
             unsafe { self.dealloc(); }
         }

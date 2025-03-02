@@ -93,13 +93,12 @@ mod tests {
         assert_eq!(chunks[0], VALUE.into());
 
         let ptr = chunks.ptr as *mut u8;
-        let chunks2: Chunks<u8> = Chunks {
+        // BoundsCheck = false : Needed to exceed bounds intentionally further
+        let chunks2: Chunks<u8, false> = Chunks {
             ptr: ptr,
             count: SIZE * size_factor,
             // Double-free is possible, so do not treat it as allocated
             allocated: false,
-            // Will exceed bounds intentionally further
-            bounds_check: false,
         };
 
         /*

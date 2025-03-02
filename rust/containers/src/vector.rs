@@ -5,18 +5,17 @@ use crate::chunks as my;
 
 #[derive(Debug)]
 struct Vector<T: fmt::Display + Copy> {
-    data: my::Chunks<T>,
+    data: my::Chunks<T, true>,
+    // len: usize,
+    // capacity: usize,
 }
 
 impl<T: fmt::Display + Copy> Vector<T> {
     fn new(value: T, len: usize) -> Self {
-        // TODO wrap with safe checks
-        unsafe {
-            let mut v = Vector {
-                data: my::Chunks::alloc(len)
-            };
-            v.data.memset(value);
-            v
+        // TODO Safety: Needed?
+        let chunks = unsafe { my::Chunks::filled(len, value) };
+        Vector {
+            data: chunks,
         }
     }
 }
