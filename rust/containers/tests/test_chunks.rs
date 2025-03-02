@@ -23,6 +23,7 @@ mod tests {
             assert!(!chunks.ptr.is_null());
             chunks.dealloc();
             assert!(chunks.ptr.is_null());
+            assert_eq!(chunks.count, 0);
         }
     }
 
@@ -81,8 +82,8 @@ mod tests {
         }
     }
 
-    fn test_reinterpret<T>() 
-    where 
+    fn test_reinterpret<T>()
+    where
         T: Copy + std::fmt::Debug + std::cmp::PartialEq + From<u8>
     { unsafe {
         let SIZE = 20;
@@ -93,12 +94,11 @@ mod tests {
         assert_eq!(chunks[0], VALUE.into());
 
         let ptr = chunks.ptr as *mut u8;
-        // BoundsCheck = false : Needed to exceed bounds intentionally further
-        let chunks2: Chunks<u8, false> = Chunks {
+        // BOUNDS_CHECK = false : Turn off as needed to exceed bounds intentionally further
+        // AUTO_DROP = false : Double-free is possible, so do not treat it as allocated
+        let chunks2: Chunks<u8, false, false> = Chunks {
             ptr: ptr,
             count: SIZE * size_factor,
-            // Double-free is possible, so do not treat it as allocated
-            allocated: false,
         };
 
         /*
@@ -126,5 +126,53 @@ mod tests {
     test_parametrized!(test_reinterpret, test_reinterpret_i16, i16);
     test_parametrized!(test_reinterpret, test_reinterpret_i32, i32);
     test_parametrized!(test_reinterpret, test_reinterpret_i64, i64);
+
+    #[test]
+    fn test_chunks_to_vec() {
+        let mut chunks;
+        let mut v = unsafe {
+            chunks = Chunks::<u8, false, false>::filled(3, 1);
+            Vec::from_raw_parts(
+                chunks.ptr,
+                chunks.count,
+                chunks.count,
+            )
+        };
+
+        unsafe {
+            assert_eq!(v.as_mut_ptr(), chunks.ptr);
+        }
+
+        v[0] = 10;
+        v.push(20);
+        v.push(20);
+        v.push(23);
+        v.push(23);
+        v.push(28);
+        v.push(20);
+        v.push(22);
+        v.shrink_to_fit();
+        v.push(21);
+
+        // Is it guaranteed?
+        unsafe {
+            assert_eq!(v.as_mut_ptr(), chunks.ptr);
+        }
+
+        for i in 0..v.len() {
+            assert_eq!(v[i], chunks[i]);
+        }
+    }
+
+    #[test]
+    fn test_grow() {
+        let mut chunks = Chunks::<u8>::alloc(10);
+        chunks.grow(1);
+        assert_eq!(chunks.count, 10 + 1);
+        chunks.grow(1);
+        assert_eq!(chunks.count, 10 + 2);
+        chunks.grow(1);
+        assert_eq!(chunks.count, 10 + 3);
+    }
 }
 

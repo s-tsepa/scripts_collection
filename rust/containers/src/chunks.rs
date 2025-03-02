@@ -1,7 +1,52 @@
 use std::alloc;
 use std::ptr;
+use std::mem;
 use std::fmt;
 use std::ops::{Index, IndexMut};
+
+type Layout = alloc::Layout;
+
+fn array_layout<T>(count: usize) -> Layout {
+    let layout = alloc::Layout::array::<T>(count).unwrap();
+    assert_ne!(layout.size(), 0);
+    assert_eq!(layout.size(), count * mem::size_of::<T>());
+    layout
+}
+
+fn array_alloc<T>(count: usize) -> *mut T {
+    let layout = array_layout::<T>(count);
+
+    unsafe {
+        alloc::alloc(layout) as *mut T
+    }
+}
+
+fn array_realloc<T>(ptr: *mut T, count: usize, newCount: usize) -> *mut T {
+    if (newCount == count) {
+        return ptr;
+    }
+
+    let layout = array_layout::<T>(count);
+
+    unsafe {
+        alloc::realloc(
+            ptr as *mut u8,
+            layout,
+            array_layout::<T>(newCount).size()
+        ) as *mut T
+    }
+}
+
+fn array_dealloc<T>(ptr: *mut T, count: usize) {
+    // Safety: memory was allocated with same pointer and layout alignment
+    unsafe {
+        alloc::dealloc(
+            ptr as *mut u8,
+            array_layout::<T>(count)
+        )
+    }
+}
+
 
 pub struct Chunks<T, const BOUNDS_CHECK: bool = true, const AUTO_DROP: bool = true>
 where
@@ -17,16 +62,8 @@ impl<
     const AD: bool,
 > Chunks<T, BC, AD> {
     pub fn alloc(count: usize) -> Self {
-        let layout = alloc::Layout::array::<T>(count).unwrap();
-        if layout.size() == 0 {
-            panic!("Improper layout");
-        }
-
-        let ptr: *mut T = unsafe {
-            alloc::alloc(layout) as *mut T
-        };
         Self {
-            ptr,
+            ptr: array_alloc::<T>(count),
             count,
         }
     }
@@ -38,20 +75,34 @@ impl<
     }
 
     pub fn dealloc(&mut self) {
-        let layout = alloc::Layout::array::<T>(self.count).unwrap();
-        let ptrByte = self.ptr as *mut u8;
         if self.allocated() {
-            // Safety: memory was allocated with same pointer and layout alignment
-            unsafe {
-                alloc::dealloc(ptrByte, layout);
-            }
+            array_dealloc(self.ptr, self.count);
         }
 
         self.ptr = ptr::null::<T>() as *mut T;
+        self.count = 0;
+    }
+
+    pub fn realloc(&mut self, newCount: usize) {
+        if self.allocated() {
+            self.ptr = array_realloc(self.ptr, self.count, newCount);
+        } else {
+            self.ptr = array_alloc(newCount);
+        }
+        self.count = newCount;
+    }
+
+    pub fn grow(&mut self, delta: usize) {
+        if (!self.allocated()) {
+            // Copy is in action? How efficiently?
+            // self = Self::alloc(delta);
+            return;
+        }
+        self.realloc(self.count + delta);
     }
 
     pub fn allocated(&self) -> bool {
-        !self.ptr.is_null()
+        !self.ptr.is_null() && self.count > 0
     }
 
     pub unsafe fn memset(&mut self, value: T) {
