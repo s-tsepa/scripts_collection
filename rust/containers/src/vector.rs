@@ -9,7 +9,7 @@ use crate::chunks as my;
 pub struct Vector<T: fmt::Display + Copy> {
     data: my::Chunks<T>,
     pub len: usize,
-    // capacity: usize, -> data.count
+    // capacity: usize, -> self.capacity()
 }
 
 impl<T: fmt::Display + Copy> Vector<T> {
@@ -37,7 +37,7 @@ impl<T: fmt::Display + Copy> Vector<T> {
         }
 
         if self.len == self.data.count {
-            self.data.grow(1);
+            self.data.grow(self.grow_strategy());
         }
 
         // TODO Safety: ?
@@ -64,13 +64,22 @@ impl<T: fmt::Display + Copy> Vector<T> {
         }
     }
 
+    pub fn capacity(&self) -> usize {
+        self.data.count
+    }
+
+    pub fn as_slice(&self) -> &[T] {
+        &self.data.as_slice()[0..self.len]
+    }
+
     fn bounds(&self, index: usize) -> bool {
         // TODO Turn BOUNDS_CHECK off for self.data
         0 <= index && index < self.len
     }
 
-    pub fn as_slice(&self) -> &[T] {
-        &self.data.as_slice()[0..self.len]
+    /// Given the current capacity & size of an elem, returns new capacity to grow by
+    fn grow_strategy(&self) -> usize {
+        self.capacity() * 2
     }
 }
 
