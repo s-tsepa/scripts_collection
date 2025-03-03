@@ -1,5 +1,3 @@
-// pub mod chunks;
-
 use std::fmt;
 use std::ptr;
 use std::ops::{Index, IndexMut};
@@ -9,12 +7,14 @@ use crate::chunks as my;
 pub struct Vector<T: fmt::Display + Copy> {
     data: my::Chunks<T>,
     pub len: usize,
-    // capacity: usize, -> self.capacity()
 }
 
 impl<T: fmt::Display + Copy> Vector<T> {
     pub fn new(value: T, len: usize) -> Self {
-        let chunks = my::Chunks::filled(value, len);
+        // Allocate at least something
+        let capacity = if (len > 0) { len } else { 1 };
+
+        let chunks = my::Chunks::filled(value, capacity);
         Vector {
             data: chunks,
             len: len,
@@ -79,7 +79,10 @@ impl<T: fmt::Display + Copy> Vector<T> {
 
     /// Given the current capacity & size of an elem, returns new capacity to grow by
     fn grow_strategy(&self) -> usize {
-        self.capacity() * 2
+        match self.capacity() {
+            0..3 => 4,
+            _ => self.capacity() * 2
+        }
     }
 }
 
