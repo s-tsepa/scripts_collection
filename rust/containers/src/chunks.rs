@@ -2,6 +2,7 @@ use std::alloc;
 use std::ptr;
 use std::mem;
 use std::fmt;
+use core::slice;
 use std::ops::{Index, IndexMut};
 
 type Layout = alloc::Layout;
@@ -22,7 +23,7 @@ fn array_alloc<T>(count: usize) -> *mut T {
 }
 
 fn array_realloc<T>(ptr: *mut T, count: usize, newCount: usize) -> *mut T {
-    if (newCount == count) {
+    if newCount == count {
         return ptr;
     }
 
@@ -68,7 +69,7 @@ impl<
         }
     }
 
-    pub unsafe fn filled(count: usize, value: T) -> Self {
+    pub fn filled(value: T, count: usize) -> Self {
         let mut c = Self::alloc(count);
         c.memset(value);
         c
@@ -93,7 +94,7 @@ impl<
     }
 
     pub fn grow(&mut self, delta: usize) {
-        if (!self.allocated()) {
+        if !self.allocated() {
             // Copy is in action? How efficiently?
             // self = Self::alloc(delta);
             return;
@@ -105,9 +106,10 @@ impl<
         !self.ptr.is_null() && self.count > 0
     }
 
-    pub unsafe fn memset(&mut self, value: T) {
+    pub fn memset(&mut self, value: T) {
         for i in 0..self.count {
-            ptr::write(self.ptr.add(i), value);
+            // ptr::write(self.ptr.add(i), value);
+            self[i] = value;
         }
     }
 
@@ -159,6 +161,10 @@ impl<
         }
     }
     // TODO is it right approach in Rust to have mut & const function's duplicates?
+
+    pub fn as_slice(&self) -> &[T] {
+        unsafe { slice::from_raw_parts(self.ptr, self.count) }
+    }
 }
 
 // ================== INDEX & INDEX_MUT ==================
@@ -212,8 +218,7 @@ impl<
 > Drop for Chunks<T, BC, AD> {
     fn drop(&mut self) {
         if self.allocated() && AD {
-            // Safety: We know we allocated this memory via `unsafe` so we must deallocate it.
-            unsafe { self.dealloc(); }
+            self.dealloc();
         }
     }
 }

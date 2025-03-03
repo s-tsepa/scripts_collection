@@ -134,7 +134,7 @@ mod tests {
     fn test_chunks_to_vec() {
         let mut chunks;
         let mut v = unsafe {
-            chunks = Chunks::<u8, false, false>::filled(3, 1);
+            chunks = Chunks::<u8, false, false>::filled(1, 3);
             Vec::from_raw_parts(
                 chunks.ptr,
                 chunks.count,
@@ -176,6 +176,16 @@ mod tests {
         assert_eq!(chunks.count, 10 + 2);
         chunks.grow(1);
         assert_eq!(chunks.count, 10 + 3);
+    }
+
+    #[test]
+    fn test_as_slice() {
+        let mut chunks = Chunks::<u8>::filled(1, 3);
+        // What is &[...] notation? Does it create object on memory?
+        assert_eq!(chunks.as_slice(), &[1, 1, 1]);
+
+        chunks[1] = 10;
+        assert_eq!(chunks.as_slice(), &[1, 10, 1]);
     }
 }
 
