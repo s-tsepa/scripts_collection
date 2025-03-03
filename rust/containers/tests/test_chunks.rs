@@ -87,11 +87,20 @@ mod tests {
         T: Copy + std::fmt::Debug + std::cmp::PartialEq + From<u8>
     { unsafe {
         let SIZE = 20;
-        let VALUE = 100;
+        let VALUE: T = 100.into();
         let size_factor: usize = mem::size_of::<T>() / mem::size_of::<u8>();
         let mut chunks = Chunks::<T>::alloc(SIZE);
         chunks.memset(VALUE.into());
-        assert_eq!(chunks[0], VALUE.into());
+        assert_eq!(chunks[0], VALUE);
+
+        let chunks_view: Chunks::<T, false, false> = Chunks {
+            ptr: chunks.ptr,
+            count: chunks.count
+        };
+        /*
+         * Check that no further allocation happenned out of bounds
+         */
+        assert_ne!(chunks_view[chunks.count], VALUE);
 
         let ptr = chunks.ptr as *mut u8;
         // BOUNDS_CHECK = false : Turn off as needed to exceed bounds intentionally further
@@ -106,17 +115,11 @@ mod tests {
          */
         chunks2.indices().for_each(|i| {
             if i % size_factor == 0 {
-                assert_eq!(chunks2[i], VALUE.into(), "(i: {i}) First byte in chunk is to be {VALUE}");
+                // TODO What?!
+                assert_eq!(<u8 as Into<T>>::into(chunks2[i]), VALUE, "(i: {i}) First byte in chunk is to be {VALUE:?}");
             } else {
-                assert_eq!(chunks2[i], 0.into(), "(i: {i}) Rest part of chunk is to be 0");
+                assert_eq!(<u8 as Into<T>>::into(chunks2[i]), 0.into(), "(i: {i}) Rest part of chunk is to be 0");
             }
-        });
-
-        /*
-         * Going out of array bounds by one more chunk, and check that VALUE is not present anymore
-         */
-        (0..size_factor).for_each(|i| {
-            assert_ne!(chunks2[chunks2.count + i], VALUE, "(i: {i}) Chunk after array limit should not contain {VALUE}");
         });
     } }
 
